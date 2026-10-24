@@ -1,0 +1,26 @@
+{
+  "name": "qq-dsh",
+  "version": "1.6.0",
+  "private": true,
+  "description": "QQ 桥接的 dsh 侧组件集合：prompt-sections / tools / host",
+  "type": "module",
+  "exports": {
+    "./prompt-sections": "./src/prompt-sections/index.js",
+    "./tools": "./src/tools/index.js",
+    "./host": "./src/host/index.js",
+    "./shared/config": "./src/shared/config.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node tests/smoke.mjs && node tests/mount.mjs"
+  }
+}

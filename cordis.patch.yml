@@ -1,0 +1,10 @@
+
+- insert:
+    - id: qq-prompt-sections
+      name: qq-dsh/prompt-sections
+
+    - id: qq-dsh-host
+      name: qq-dsh/host
+
+    - id: qq-dsh-tools
+      name: qq-dsh/tools
