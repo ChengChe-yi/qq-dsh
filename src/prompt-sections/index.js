@@ -215,7 +215,7 @@ function ownerTitleOf(config, sessionId) {
 //   {selfName}   当前角色名（`config.json` 的 `role.current`）—— 身份声明用它
 //   {selfQq}     本号
 //   {ownerQq}    管理者
-//   {ownerTitle} 怎么称呼管理者（角色卡的 `<!-- owner-title: X -->` > `config.json` 的 `owner.title` > 默认「主人」）——
+//   {ownerTitle} 怎么称呼管理者（角色卡的 `<!-- owner-title: X -->`，没有就「主人」）——
 //                提示词里「你主人」「他说」这类措辞靠它，换称呼不用改 md
 //
 // （曾经还有 {convKey} / {token}：令牌每次进程启动都变，放这里会让整段 system prompt
@@ -228,12 +228,11 @@ function fillVars(text, config, sessionId) {
   const name = roleFor(config, sessionId) || 'this account';
   const selfQq = String(cfg?.snowluma?.selfQq ?? '').trim();
   const ownerQq = String(cfg?.owner?.qq ?? '').trim();
-  // 称呼：角色卡里的 `<!-- owner-title: X -->` 优先，其次 config，最后「主人」。
-  // 角色卡优先的理由：换角色时称呼本就该跟着换（玥叫「主人」，别的卡可能叫别的），
-  // 而 config.json 只有一个全局值。
-  const ownerTitle = ownerTitleOf(config, sessionId)
-    || String(cfg?.owner?.title ?? '').trim()
-    || '主人';
+  // 称呼只从**角色卡**来（`<!-- owner-title: X -->`），没有就用「主人」。
+  //
+  // 为什么不放 config.json：称呼本来就是角色的一部分（玥叫「主人」，别的卡可能叫别的），
+  // 放全局配置里必然和角色打架；而且 `owner` 那段只该有 `qq` 一个字段。
+  const ownerTitle = ownerTitleOf(config, sessionId) || '主人';
   return text
     .replaceAll('{selfName}', name)
     .replaceAll('{selfQq}', selfQq || '(未知)')
