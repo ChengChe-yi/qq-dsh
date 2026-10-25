@@ -42,7 +42,10 @@ function readText(file, { required = true } = {}) {
     const key = `${mtimeMs}:${size}`;
     const hit = textCache.get(file);
     if (hit && hit.key === key) return hit.text;
-    const text = stripLeadingHeading(fs.readFileSync(file, 'utf8').trim());
+    // 顺序很重要：先剥注释，再剥标题。
+    // 注释常在首行（`<!-- owner-title: … -->`），若先剥标题，标题就成了"第二行"
+    // 被留下 —— 不同卡的头一行就长得不一样了。
+    const text = stripLeadingHeading(stripComments(fs.readFileSync(file, 'utf8').replace(/\r\n?/g, '\n')));
     textCache.set(file, { key, text });
     return text;
   } catch (error) {
@@ -51,6 +54,23 @@ function readText(file, { required = true } = {}) {
       `qq-prompt-sections: 读不到 ${file}（${error.code ?? error.message}）。`
       + '这个文件承载的是防注入规则，缺失必须显式失败，不能静默变成空段。',
     );
+  }
+}
+
+// 元数据要用**原文**（注释已经被 readText 剥掉了）。单独一份缓存，键加前缀。
+const rawCache = new Map();
+
+function readRawText(file) {
+  try {
+    const { mtimeMs, size } = fs.statSync(file);
+    const key = `${mtimeMs}:${size}`;
+    const hit = rawCache.get(file);
+    if (hit && hit.key === key) return hit.text;
+    const text = fs.readFileSync(file, 'utf8').replace(/\r\n?/g, '\n');
+    rawCache.set(file, { key, text });
+    return text;
+  } catch {
+    return '';
   }
 }
 
@@ -139,24 +159,64 @@ function currentRole(config) {
   return String(readBridgeConfig(config?.bridgeConfigFile)?.role?.current ?? '').trim();
 }
 
+// 角色卡顶部的元数据注释：`<!-- owner-title: 主人 -->`。
+//
+// 为什么用注释：它在渲染出来的 Markdown 里不可见，人看着不碍事，机器能读；
+// 而"改成正文一行"会污染人设正文，模型也会把那一行当成人设的一部分。
+//
+// ⚠️ 它必须在进提示词之前**整段删掉** —— 否则模型会看到一行不知道是什么的
+//    指令，而且可能把它当成"用户说过的话"。
+const META_RE = '<!--\\s*([a-zA-Z][\\w-]*)\\s*:\\s*([\\s\\S]*?)-->';
+
+/** 取一个元数据（没有就空串）。 */
+function metaOf(text, key) {
+  // 键名被替换进模板，所以值在**第 1 个**捕获组（不是第 2 个 —— 踩过）。
+  const re = new RegExp(META_RE.replace('([a-zA-Z][\\w-]*)', key), 'i');
+  const m = re.exec(String(text ?? ''));
+  return m ? String(m[1] ?? '').trim() : '';
+}
+
+/** 删掉所有 HTML 注释，顺手压掉因此多出来的空行。 */
+function stripComments(text) {
+  return String(text ?? '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // 角色卡正文；没有启用角色或读不到时返回空串。
 //
 // 返回空串而不是抛错：没有人设不是致命错误（模型用默认口吻），
 // 而抛错会让整个 prompt 组装失败、消息一条都发不出去。
 // 只取 basename：`config.json` 是手可改的，别让角色名变成 `../../.credentials`。
-function loadRoleCard(config, sessionId) {
+function loadRoleCardRaw(config, sessionId) {
   const dir = String(config?.rolesDir ?? '').trim();
   const role = roleFor(config, sessionId);
   if (!dir || !role) return '';
   return readText(path.join(dir, `${path.basename(role)}.md`), { required: false });
 }
 
-// 填运行时占位符（`{selfName}` / `{selfQq}` / `{ownerQq}`）。
+/** 进提示词的那份（注释已在 readText 里剥掉）。 */
+function loadRoleCard(config, sessionId) {
+  return loadRoleCardRaw(config, sessionId);
+}
+
+/** 这个会话该叫他什么 —— 角色卡里的 `owner-title` 优先。 */
+function ownerTitleOf(config, sessionId) {
+  const dir = String(config?.rolesDir ?? '').trim();
+  const role = roleFor(config, sessionId);
+  if (!dir || !role) return '';
+  return metaOf(readRawText(path.join(dir, `${path.basename(role)}.md`)), 'owner-title');
+}
+
+// 填运行时占位符（`{selfName}` / `{selfQq}` / `{ownerQq}` / `{ownerTitle}`）。
 //
-// 三个都是**跨重启不变**的事实，放 system 层不会打断前缀缓存：
-//   {selfName}  当前角色名（`config.json` 的 `role.current`）—— 身份声明用它
-//   {selfQq}    本号
-//   {ownerQq}   管理者
+// 四个都是**跨重启不变**的事实，放 system 层不会打断前缀缓存：
+//   {selfName}   当前角色名（`config.json` 的 `role.current`）—— 身份声明用它
+//   {selfQq}     本号
+//   {ownerQq}    管理者
+//   {ownerTitle} 怎么称呼管理者（角色卡的 `<!-- owner-title: X -->` > `config.json` 的 `owner.title` > 默认「主人」）——
+//                提示词里「你主人」「他说」这类措辞靠它，换称呼不用改 md
 //
 // （曾经还有 {convKey} / {token}：令牌每次进程启动都变，放这里会让整段 system prompt
 //  每次重启都变、前缀缓存全废。那条已经搬回 user 消息。）
@@ -168,10 +228,17 @@ function fillVars(text, config, sessionId) {
   const name = roleFor(config, sessionId) || 'this account';
   const selfQq = String(cfg?.snowluma?.selfQq ?? '').trim();
   const ownerQq = String(cfg?.owner?.qq ?? '').trim();
+  // 称呼：角色卡里的 `<!-- owner-title: X -->` 优先，其次 config，最后「主人」。
+  // 角色卡优先的理由：换角色时称呼本就该跟着换（玥叫「主人」，别的卡可能叫别的），
+  // 而 config.json 只有一个全局值。
+  const ownerTitle = ownerTitleOf(config, sessionId)
+    || String(cfg?.owner?.title ?? '').trim()
+    || '主人';
   return text
     .replaceAll('{selfName}', name)
     .replaceAll('{selfQq}', selfQq || '(未知)')
-    .replaceAll('{ownerQq}', ownerQq || '(未知)');
+    .replaceAll('{ownerQq}', ownerQq || '(未知)')
+    .replaceAll('{ownerTitle}', ownerTitle);
 }
 // #endregion
 
