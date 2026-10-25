@@ -277,7 +277,10 @@ function apply(ctx, config) {
         // `context.agent` 是 dsh-agent 在装配时塞进来的（`assembleContextFor`：
         // `{ agent, scope: agent }`）；会话 id 取 `agent.id`。
         // 同一个群挂着几个角色时，`{selfName}` 必须按会话走，不能按 `role.current`。
-        text: vars ? (context) => fillVars(raw(), config, sessionIdOf(context)) : raw,
+        // 默认**每段都填**占位符（`vars: false` 才跳过）。
+        // 早先只有 1-intro 标了 `vars: true`，于是 3-safety 里的 `{ownerQq}`
+        // 一直是字面量 —— 模型看到的就是 `{ownerQq}`，没人发现。
+        text: vars === false ? raw : (context) => fillVars(raw(), config, sessionIdOf(context)),
       }),
       `qq-prompt-sections.${id}`,
     );
