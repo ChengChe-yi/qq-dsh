@@ -86,7 +86,16 @@ function apply(ctx, config) {
 
   ctx.logger?.info?.('qq-dsh-tools 已注册', {
     count: tools.length, bridge: cfg.bridgeUrl, mount,
+    // 每个值从哪来（config / env / default / derived）。排查"为什么连的是 3110"看这行。
+    config: cfg.sources,
   });
+
+  // bridgeRoot 只被 `qq_usage` 用来加载 mcp-md 渲染器。缺了不影响工具，但要说出来 ——
+  // 否则用量卡片会莫名其妙退回纯文本，而没人知道是因为配置少了一项。
+  if (!cfg.bridgeRoot) {
+    ctx.logger?.warn?.('qq-dsh-tools: 既没有 bridgeRoot 也没有标准布局的 tokenFile，'
+      + 'qq_usage 的卡片图会退回纯文本', { tokenFile: cfg.tokenFile });
+  }
 
   ctx.effect(() => () => {
     mounts -= 1;

@@ -28,7 +28,9 @@ async function boot(ctx, config) {
   const routes = createRoutes({ host, lifecycle });
 
   const server = await startServer({ ...cfg, routes, lifecycle, logger: ctx.logger });
-  ctx.logger?.info?.('qq-dsh-host 已监听', { url: server.url, version: VERSION });
+  ctx.logger?.info?.('qq-dsh-host 已监听', {
+    url: server.url, version: VERSION, config: cfg.sources,
+  });
 
   // 卸载/热重载时关监听，否则下次加载会撞端口。
   ctx.effect(() => () => server.close(), 'qq-dsh-host.server');
