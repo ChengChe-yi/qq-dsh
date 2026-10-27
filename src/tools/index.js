@@ -12,18 +12,17 @@ import { setNickname } from './tools/set-nickname.js';
 import { setGroupCard } from './tools/set-group-card.js';
 import { recall } from './tools/recall.js';
 import { wait } from './tools/wait.js';
-import { getMessageImages } from './tools/get-message-images.js';
-import { getVoice } from './tools/get-voice.js';
+import { getContent } from './tools/get-content.js';
 import { listStickers } from './tools/list-stickers.js';
 import { stickerCollect } from './tools/sticker-collect.js';
 import { stickerRename } from './tools/sticker-rename.js';
-import { getForward } from './tools/get-forward.js';
 import { groupInfo } from './tools/group-info.js';
 import { userInfo } from './tools/user-info.js';
 import { memberList } from './tools/member-list.js';
+import { usage } from './tools/usage.js';
 
 const name = 'qq-dsh-tools';
-const inject = ['tools'];
+const inject = ['tools', 'sessions'];
 
 // 同一次进程里这份插件被挂载的次数。
 //   · 挂 preset → 每个会话挂一次（ESM 只加载一次，所以模块级变量是共享的，看这个数就对）
@@ -50,15 +49,20 @@ function apply(ctx, config) {
     setGroupCard({ bridge, ctx }),
     recall({ bridge, ctx }),
     wait({ bridge, ctx }),
-    getMessageImages({ bridge, ctx }),
-    getVoice({ bridge, ctx }),
+    getContent({ bridge, ctx }),
     listStickers({ bridge, ctx }),
     stickerCollect({ bridge, ctx }),
     stickerRename({ bridge, ctx }),
-    getForward({ bridge, ctx }),
     groupInfo({ bridge, ctx }),
     userInfo({ bridge, ctx }),
     memberList({ bridge, ctx }),
+    usage({
+      bridge,
+      ctx,
+      bridgeRoot: cfg.bridgeRoot,
+      sessions: ctx.sessions,
+      projections: typeof ctx.get === 'function' ? ctx.get('sessionProjections') : null,
+    }),
   ];
 
   for (const tool of tools) {

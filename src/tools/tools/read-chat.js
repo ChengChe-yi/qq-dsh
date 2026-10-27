@@ -27,7 +27,7 @@ const PARAMETERS = {
   kinds: {
     type: 'array',
     items: { type: 'string', enum: ['text', 'mixed', 'image', 'record', 'video', 'forward', 'json', 'face'] },
-    description: 'Only messages of these types. image/record pairs with qq_get_message_images / qq_get_voice.',
+    description: 'Only messages of these types. image/record pairs with qq_get_content (kind: "image" / "voice").',
   },
   unreadOnly: { type: 'boolean', description: 'Only messages not read yet.' },
   sender: idParam('Filter by sender: one QQ number or several.'),
