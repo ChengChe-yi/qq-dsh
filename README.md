@@ -2,6 +2,86 @@
 
 QQ ↔ dsh桥接的 **dsh 侧组件包**：把一个真实的 QQ 号变成 agent 的一个会话
 
+包里有四个插件：
+
+| 入口 | 干什么 |
+|---|---|
+| `qq-dsh/prompt-sections` | 往 system prompt 里塞桥接的提示词段（从 `<bridgeRoot>/prompts` 读） |
+| `qq-dsh/host` | 回环 HTTP（3130），给桥接调 dsh 用 |
+| `qq-dsh/tools` | 16 个 `qq_*` 工具 |
+| `qq-dsh/wslbash` | **bash 执行器**：把命令交给 WSL（替代"在 PATH 上放一个 bash 转发 exe"的老做法） |
+
+## bash 执行器（`qq-dsh/wslbash`）
+
+DSH 的 shell 是一个可替换的服务（`ctx.shell`，基类 `ShellExecutor`）。这个入口继承
+`@deepseek-ai/dsh-bash-sandbox` 的 `SandboxBashExecutor`，只把最后拼出来的 argv 换掉：
+
+```
+wsl.exe -d <distro> -e <toolsh> <linuxCwd> <linuxScript>
+```
+
+命令原文先写成 `<winWorkspace>/_toolsh_<token>.sh`，再让 WSL 里的 bash 去 source 它 ——
+命令要穿过 Node → wsl.exe → bash 三个进程，任何一层做引号转义都可能被下一层吃掉，
+写文件就没有转义问题。进程结束时删掉，启动时扫一遍残留。
+
+| 键 | 默认 |
+|---|---|
+| `distro` | `Ubuntu` |
+| `wslExe` | `wsl.exe` |
+| `linuxWorkspace` | `/ws` |
+| `sweepOnStart` | `true` |
+| **`winWorkspace`** | **必填** —— 工作区在 Windows 侧的根（暂存脚本写这里） |
+| **`toolsh`** | **必填** —— WSL 里的入口脚本绝对路径（沙箱策略由它负责） |
+| `timeoutMs` / `maxTimeoutMs` / `maxOutputBytes` / `maxSpillBytes` / `graceMs` / `cwd` | 与 `dsh-bash-local` 相同（输出上限与 spill 直接继承 `ctx.subprocess`） |
+
+`winWorkspace` 与 `toolsh` **故意没有默认值**：工作区挂在哪、WSL 里那个入口脚本叫什么，
+都是部署事实，不属于这个包。缺了它们时不会在加载期炸（那会连累整棵插件树），
+而是第一次执行时把该补的两项指名道姓报出来。
+
+```yaml
+- insert:
+    - id: wsl-bash
+      name: qq-dsh/wslbash
+      config:
+        winWorkspace: <工作区在 Windows 侧的根>
+        toolsh: <WSL 里的入口脚本绝对路径>
+```
+
+### 沙箱：只接受 `danger-full-access`
+
+限制由 WSL 侧你自己装的 `toolsh` 负责（常见做法是 Landlock 之类的白名单）。
+DSH 的 `ctx.sandbox` 管的是 Windows 侧的进程，给不出"进 WSL 之后还能读到什么"，
+所以这个执行器**不假设**那边的白名单，也**不转述**它。
+
+非 full-access 时**必须失败**：假装受限比不受限更危险。
+要用 DSH 自己的沙箱，就把本插件 `disabled: true`，改用 `bash-sandbox`。
+
+### 没装 WSL 的机器
+
+**把这个入口关掉**，再决定用 `dsh-bash-local` / `dsh-bash-sandbox`，或者干脆不给 shell：
+
+```yaml
+- insert:
+    - id: wsl-bash
+      name: qq-dsh/wslbash
+      disabled: true     # 没有 WSL 就关掉，别留一个必然报错的执行器
+```
+
+它**不在加载期抛错**（那会让 DSH 起不来），只在第一次执行时给准确诊断：
+缺 `wsl.exe` 就指名 `wsl.exe`，缺 `toolsh` 就把该跑的那条验证命令一起打出来。
+
+### 跑它的测试
+
+纯逻辑那一层仓库里就能跑；另外两层靠环境变量指过去（没给就跳过）：
+
+```
+DSH_STANDALONE=<dsh-standalone 目录>            # 校验 Config 默认值与上游一致
+QQ_DSH_TEST_WORKSPACE=<工作区 Windows 根>
+QQ_DSH_TEST_TOOLSH=<WSL 入口脚本>
+QQ_DSH_TEST_WSL_PATH=<挂载点，默认 /ws>
+QQ_DSH_TEST_DISTRO=<发行版，默认 Ubuntu>         # 真在这台机器上跑一次
+```
+
 ## 配置
 
 包里有三个 dsh 插件（`prompt-sections` / `host` / `tools`），**共用同一套配置键**，

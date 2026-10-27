@@ -230,7 +230,7 @@ function fillVars(text, config, sessionId) {
   const ownerQq = String(cfg?.owner?.qq ?? '').trim();
   // 称呼只从**角色卡**来（`<!-- owner-title: X -->`），没有就用「主人」。
   //
-  // 为什么不放 config.json：称呼本来就是角色的一部分（玥叫「主人」，别的卡可能叫别的），
+  // 为什么不放 config.json：称呼本来就是角色的一部分（有的卡叫「主人」，别的卡可能叫别的），
   // 放全局配置里必然和角色打架；而且 `owner` 那段只该有 `qq` 一个字段。
   const ownerTitle = ownerTitleOf(config, sessionId) || '主人';
   return text

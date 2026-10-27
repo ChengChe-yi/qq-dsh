@@ -8,6 +8,7 @@
     "./prompt-sections": "./src/prompt-sections/index.js",
     "./tools": "./src/tools/index.js",
     "./host": "./src/host/index.js",
+    "./wslbash": "./src/wslbash/index.js",
     "./shared/config": "./src/shared/config.js",
     "./package.json": "./package.json"
   },
@@ -21,6 +22,6 @@
     }
   },
   "scripts": {
-    "test": "node tests/smoke.mjs && node tests/mount.mjs"
+    "test": "node tests/smoke.mjs && node tests/mount.mjs && node tests/wslbash.mjs"
   }
 }
