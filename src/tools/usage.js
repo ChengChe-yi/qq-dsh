@@ -4,7 +4,7 @@
 // contextBreakdown。卡片样式复用 mcp-md 的 Chrome 渲染器。
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { defineQQTool } from '../shell.js';
+import { defineQQTool } from './shell.js';
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const comma = (n) => Number(n).toLocaleString('en-US');

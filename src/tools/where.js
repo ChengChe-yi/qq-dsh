@@ -1,5 +1,5 @@
 // qq_where：不需要桥接，纯本地 —— 用来确认工具知道自己在哪个会话。
-import { defineQQTool } from '../shell.js';
+import { defineQQTool } from './shell.js';
 
 export function where({ ctx }) {
   return defineQQTool({

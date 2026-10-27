@@ -4,22 +4,37 @@
 import { VERSION } from '../shared/version.js';
 import { resolveConfig } from './config.js';
 import { createBridge } from './bridge.js';
-import { where } from './tools/where.js';
-import { unread } from './tools/unread.js';
-import { readChat } from './tools/read-chat.js';
-import { send } from './tools/send.js';
-import { setNickname } from './tools/set-nickname.js';
-import { setGroupCard } from './tools/set-group-card.js';
-import { recall } from './tools/recall.js';
-import { wait } from './tools/wait.js';
-import { getContent } from './tools/get-content.js';
-import { listStickers } from './tools/list-stickers.js';
-import { stickerCollect } from './tools/sticker-collect.js';
-import { stickerRename } from './tools/sticker-rename.js';
-import { groupInfo } from './tools/group-info.js';
-import { userInfo } from './tools/user-info.js';
-import { memberList } from './tools/member-list.js';
-import { usage } from './tools/usage.js';
+
+// ── 目录 = 契约（与桥接侧 `src/api/handlers/` 同一套）
+//
+//   `read/`   **不改外部可见状态**（桥接侧这些 op 没有 needsAllow）
+//   `write/`  **会改外部可见状态**（桥接侧 needsAllow）
+//   根目录    不绑某个会话的工具：`where`（本地解析会话）与 `usage`（用量卡片，走 authFree 的 imagePublish）
+//
+// 为什么按"读/写"而不是"消息/表情/成员"：读写是**契约**，桥接侧已经用 needsAllow 编码了；
+// 对象归属是口味，新工具放哪儿每次都要重新讨论。
+
+// ── read/
+import { unread } from './read/unread.js';
+import { readChat } from './read/read-chat.js';
+import { wait } from './read/wait.js';
+import { getContent } from './read/get-content.js';
+import { listStickers } from './read/list-stickers.js';
+import { groupInfo } from './read/group-info.js';
+import { userInfo } from './read/user-info.js';
+import { memberList } from './read/member-list.js';
+
+// ── write/
+import { send } from './write/send.js';
+import { recall } from './write/recall.js';
+import { setNickname } from './write/set-nickname.js';
+import { setGroupCard } from './write/set-group-card.js';
+import { stickerCollect } from './write/sticker-collect.js';
+import { stickerRename } from './write/sticker-rename.js';
+
+// ── 根目录：不绑会话
+import { where } from './where.js';
+import { usage } from './usage.js';
 
 const name = 'qq-dsh-tools';
 const inject = ['tools', 'sessions'];
