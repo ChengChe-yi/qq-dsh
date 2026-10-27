@@ -1,9 +1,6 @@
 // qq_get_content：取消息内容（图 / 语音 / 视频 / 文件 / 合并转发）。
-//
-// 合并了原来的 qq_get_message_images / qq_get_voice / qq_get_forward ——
-// 三个工具的参数语义本来就不一致（`index` 在前两个里是"第几个同类段"、
-// 在转发里是"第几个节点"），分开教模型只会让它猜。现在拆成两个正交维度：
-//   `pick` = 该层级里第几个同类媒体段；`node` = 转发里的第几个节点。
+
+
 import { defineQQTool, idParam } from '../shell.js';
 
 export function getContent({ bridge, ctx }) {
@@ -46,19 +43,11 @@ export function getContent({ bridge, ctx }) {
           + 'including a card inside a node (with `node`).',
       },
       node: {
-        // 两种都收：桥接侧同样两种都认（`parseNodePath`）。
-        //
-        // ⚠️ 别把它写成单一的 `type: 'array'` —— 2026-10-27 实测踩过死锁：
-        //    插件（新）只认数组、桥接（旧）只认整数，而两边是**分别重启**的，
-        //    于是 `node: 1` 被插件挡、`node: [1]` 被桥接挡，工具直接不可用。
-        //    放宽到 oneOf 之后，任何一半落后都还能用。
-        oneOf: [
-          { type: 'integer' },
-          { type: 'array', items: { type: 'integer' } },
-        ],
-        description: 'Path of nested forward nodes, from 0: 1 or [1] = node 1 of the card; '
-          + '[1, 0] = node 0 of the card inside node 1. Max 3 levels. Given, the call reads that '
-          + 'position\'s content. Combine with kind="forward" to expand the card found there.',
+        type: 'array',
+        items: { type: 'integer' },
+        description: 'Path of nested forward nodes, 1 to 3 entries, from 0: [1] = node 1 of the card; '
+          + '[1, 0] = node 0 of the card inside node 1. Given, the call reads that position\'s content. '
+          + 'Combine with kind="forward" to expand the card found there.',
       },
       pick: {
         type: 'integer',
