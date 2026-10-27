@@ -8,3 +8,16 @@
 
     - id: qq-dsh-tools
       name: qq-dsh/tools
+
+    # bash 执行器：把命令交给 WSL（`ctx.shell` 的一个实现）。
+    #
+    # ⚠️ 默认**关**，三个原因：
+    #   1. 一个 ctx 只能有一个 `ctx.shell`；开着会和 dsh-base 的 bash-sandbox 撞，
+    #      激活失败会让 cordis 回滚插件树（实测会连带拆掉所有 MCP 连接）。
+    #   2. 它需要 WSL，且 `winWorkspace` / `toolsh` 是必填的部署事实 —— 没有默认值。
+    #   3. 不需要 shell 的部署根本不该加载它。
+    #
+    # 要用就在 profile 的 cordis.patch.yml 里**按 id 覆盖**：`disabled: false` + 那两项配置。
+    - id: wsl-bash
+      name: qq-dsh/wslbash
+      disabled: true

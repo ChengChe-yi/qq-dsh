@@ -2,7 +2,7 @@
   "name": "qq-dsh",
   "version": "1.7.1",
   "private": true,
-  "description": "QQ 桥接的 dsh 侧组件集合：prompt-sections / tools / host",
+  "description": "QQ 桥接的 dsh 侧组件集合：prompt-sections / tools / host / wslbash",
   "type": "module",
   "exports": {
     "./prompt-sections": "./src/prompt-sections/index.js",
