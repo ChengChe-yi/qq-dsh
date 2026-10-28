@@ -1,8 +1,10 @@
 # qq-dsh
 
-QQ ↔ dsh桥接的 **dsh 侧组件包**：把一个真实的 QQ 号变成 agent 的一个会话
+QQ ↔ dsh桥接的 **dsh 侧组件包**：把一个真实的 QQ 号变成 agent 的一个会话。
 
-包里有四个插件：
+配套的另一半是桥接仓库 **[`qq-dsh-bridge`](https://github.com/qq-dsh-bridge/qq-dsh-bridge)** —— 所有路径（令牌、提示词、人格卡、会话文件）都从它的目录推导，见下文「配置」。
+
+本包有**四个入口**：`prompt-sections` / `host` / `tools` 三个常驻，`wslbash` 是可选入口、**默认关闭**（原因见下一节）。
 
 | 入口 | 干什么 |
 |---|---|
@@ -82,10 +84,73 @@ QQ_DSH_TEST_WSL_PATH=<挂载点，默认 /ws>
 QQ_DSH_TEST_DISTRO=<发行版，默认 Ubuntu>         # 真在这台机器上跑一次
 ```
 
+## 安装
+
+四个入口里，`prompt-sections` / `host` / `tools` **都跑在 DSH 进程里**，所以没有"启动服务"这一步：装好插件、重启 DSH 实例即生效。Node 由 DSH 自带，`engines`（`>= 22.13.0`）只是声明最低版本。`wslbash` 是第四个入口，默认关闭，见上一节。
+
+前置三样（都是本包推导路径的锚点）：
+
+1. DSH 桌面端已装好；
+2. 桥接仓库 `qq-dsh-bridge` 已克隆到某个目录；
+3. 该目录下 `state/host-token` 已生成（`node scripts/make-host-token.mjs`）。
+
+### 方式 A：作为 bundle（推荐）
+
+本包的 `package.json` 声明了：
+
+```json
+"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+```
+
+DSH 装上本包时会按 `cordis.patch.yml` 自动 insert 那三个条目。你要做的只是**在 profile 里补 `bridgeRoot`**：
+
+```yaml
+# <dsh home>/profiles/web/cordis.patch.yml
+- insert:
+    - id: qq-prompt-sections
+      name: qq-dsh/prompt-sections
+      config: &qqBridge
+        bridgeRoot: 'D:/path/to/qq-dsh-bridge'
+
+    - id: qq-dsh-host
+      name: qq-dsh/host
+      config: *qqBridge
+
+    - id: qq-dsh-tools
+      name: qq-dsh/tools
+      config: *qqBridge
+```
+
+### 方式 B：手工放进 DSH
+
+把本包拷到下面**两个**位置（DSH 从 `plugins/` 加载，preset 从 `node_modules/` 解析名字，少一个就"找不到插件"）：
+
+```
+<dsh home>/plugins/qq-dsh/
+<dsh home>/profiles/web/node_modules/qq-dsh/
+```
+
+再把上一步那三个条目写进 `<dsh home>/profiles/web/cordis.patch.yml`，重启该 home 的 DSH 实例。
+
+> 桥接仓库里的 `scripts/install-plugins.mjs` 自动化了方式 B，但它是**早期写法**（条目名 `qq-dsh-host` / `qq-dsh-tools`，并把 `tokenFile` / `port` / `bridgeUrl` 逐项写进 yml，还会替换 preset 里的 `mcp-qq`）。用当前的 bundle 方式时不要再用它，否则同一个插件会以两个不同的名字出现。
+
+### 怎么确认装好了
+
+- 三个插件启动时各打一行日志，`config` 标注每个值的来源（`config` / `derived` / `default` / `missing`）；出现 `missing` 就是 `bridgeRoot` 没给对。
+- `host` 在 `127.0.0.1:3130` 上有监听；桥接那边启动日志会出现 `dsh 插件（qq-dsh-host）正常`。
+- 工具面：`qq_usage` 能返回卡片图 ⇒ `tokenFile` 与 `bridgeUrl` 都对；退回纯文本 ⇒ 令牌不一致或桥接没起。
+
+### 与 `mcp-qq` 的关系
+
+两者工具同名。**只留一套**：想让本包接管工具面，就把 preset 里的 `mcp-qq` 条目删掉（或换成 `qq-dsh/tools`），并存会得到两份同名工具。
+
+### 卸载 / 回滚
+
+删掉 profile `cordis.patch.yml` 里那三个条目、删掉方式 B 提到的那两个目录，重启 DSH。曾经开过 `wslbash` 的话，把 `wsl-bash` 条目也一并删掉（或改回 `disabled: true`）。
+
 ## 配置
 
-包里有三个 dsh 插件（`prompt-sections` / `host` / `tools`），**共用同一套配置键**，
-清单只有 `src/shared/config.js` 的 `CONFIG_KEYS` 一个地方。
+`prompt-sections` / `host` / `tools` 三个共用同一套配置键（`wslbash` 那几项单独列在上一节），清单只有 `src/shared/config.js` 的 `CONFIG_KEYS` 一个地方。
 
 | 键 | 谁用 | 默认 |
 |---|---|---|
