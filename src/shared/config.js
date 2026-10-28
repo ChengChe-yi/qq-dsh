@@ -46,7 +46,7 @@ export const str = (v) => String(v ?? '').trim();
 // `used` 是"哪个组件会读它"，`default` 是"不给时是什么"。没有 `default`
 // 的（`bridgeRoot`）就是必填。
 export const CONFIG_KEYS = Object.freeze({
-  bridgeRoot: { used: ['prompt-sections', 'host', 'tools'], default: null, note: `必填，或设环境变量 ${BRIDGE_HOME_ENV}` },
+  bridgeRoot: { used: ['prompt-sections', 'host'], default: null, note: `必填，或设环境变量 ${BRIDGE_HOME_ENV}` },
   tokenFile: { used: ['host', 'tools'], default: '<bridgeRoot>/state/host-token' },
   bridgeUrl: { used: ['tools'], default: DEFAULT_BRIDGE_URL, note: '只允许回环' },
   host: { used: ['host'], default: DEFAULT_HOST, note: '只允许回环' },
@@ -87,18 +87,6 @@ export function requireBridgeRoot(config, owner) {
   return root;
 }
 
-// 从令牌文件**反推**根目录 —— 只认标准布局 `<root>/state/host-token`。
-//
-// ⚠️ 以前是无条件 `dirname(dirname(tokenFile))`：给一个 `/tmp/tok` 就会推出 `/`，
-//    然后 `qq_usage` 拿着它去加载渲染器，报的错会离真正的原因很远。
-//    形状不对就**不猜**（返回空），让调用方决定是降级还是报错。
-export function rootFromTokenFile(tokenFile) {
-  const file = path.normalize(str(tokenFile));
-  if (!file) return '';
-  if (path.basename(file) !== HOST_TOKEN_NAME) return '';
-  if (path.basename(path.dirname(file)) !== STATE_DIR) return '';
-  return path.dirname(path.dirname(file));
-}
 
 // ────────────────────────────────────────────────────────────── 各个键
 
